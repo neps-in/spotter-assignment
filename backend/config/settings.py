@@ -9,7 +9,7 @@ from pathlib import Path
 BASE_DIR = Path(__file__).resolve().parent.parent
 
 SECRET_KEY = 'django-insecure-6c&046_lpg09wa25-x3r#39ot^7y3s81hw26#-26982n&rg=ti'
-DEBUG = False
+DEBUG = True
 ALLOWED_HOSTS = ['assibe.neps.in', 'assife.neps.in', 'localhost', '127.0.0.1']
 CSRF_TRUSTED_ORIGINS = ['https://assibe.neps.in', 'https://assife.neps.in']
 
@@ -20,12 +20,20 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
+    'corsheaders',
     'rest_framework',
     'api',
 ]
 
+CORS_ALLOWED_ORIGINS = [
+    'https://assife.neps.in',
+    'http://localhost:3000',
+    'http://localhost:5173',
+]
+
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
+    'corsheaders.middleware.CorsMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
