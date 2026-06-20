@@ -11,6 +11,7 @@ from api.services.fuel_planner import plan_fuel_stops
 from api.services.geo_utils import downsample_points
 from api.services.geocoder import geocode
 from api.services.router import get_route
+from api.verification import run_suite
 
 
 class RoutePlannerView(APIView):
@@ -54,3 +55,21 @@ class RoutePlannerView(APIView):
                 'coordinates': [[round(lon, 6), round(lat, 6)] for lat, lon in geojson_points],
             },
         }, status=status.HTTP_200_OK)
+
+
+class VerifyView(APIView):
+    """GET /api/verify/ -> run the 5-case live verification suite once.
+
+    Picks a fresh random US city pair on every call and reports per-test
+    pass/fail. Lets the frontend "Verify" console execute the testcases.
+    """
+
+    def get(self, request):
+        try:
+            report = run_suite()
+        except requests.RequestException as exc:
+            return Response(
+                {'detail': f'Verification could not reach external services: {exc}'},
+                status=status.HTTP_502_BAD_GATEWAY,
+            )
+        return Response(report, status=status.HTTP_200_OK)

@@ -1,0 +1,17 @@
+# Virtualenv — rebuilt per-host from requirements.txt, never committed.
+# (Committing it once already caused a prod outage: `git rm` deleted the
+#  runtime binaries gunicorn execs from, yielding 502s. Keep it ignored.)
+.venv/
+venv/
+
+# Python bytecode / caches
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Local SQLite dev DB
+db.sqlite3
+
+# Environment files
+.env
+.env.*
