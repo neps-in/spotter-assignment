@@ -95,6 +95,10 @@ def plan_fuel_stops(decoded_points, total_distance_miles):
 
     # OSRM's road distance is authoritative; rescale the haversine-derived
     # node markers so the legs sum to the real trip length.
+    # Haversine formula to calculate distance from two lat,long
+    # https://www.youtube.com/watch?v=nsVsdHeTXIE
+    # https://www.movable-type.co.uk/scripts/latlong.html
+    
     if profile_distance > 0:
         scale = total_distance_miles / profile_distance
         for node in profile:
