@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { MapContainer, TileLayer, Polyline, Marker, Popup, useMap } from 'react-leaflet'
 import L from 'leaflet'
+import VerifyPanel from './VerifyPanel'
 
 const US_CENTER = [39.5, -98.35]
 
@@ -25,6 +26,7 @@ const fmt = (n, d = 0) =>
   Number(n).toLocaleString('en-US', { minimumFractionDigits: d, maximumFractionDigits: d })
 
 export default function App() {
+  const [tab, setTab] = useState('planner') // 'planner' | 'verify'
   const [start, setStart] = useState('Wichita, KS')
   const [finish, setFinish] = useState('St. Louis, MO')
   const [loading, setLoading] = useState(false)
@@ -62,74 +64,98 @@ export default function App() {
           <p>Fuel-optimal route planner · 500mi range · 10 mpg</p>
         </div>
 
-        <form onSubmit={plan}>
-          <div className="field">
-            <label><span className="dot start" /> Origin</label>
-            <input value={start} onChange={(e) => setStart(e.target.value)} placeholder="City, ST" />
-          </div>
-          <div className="field">
-            <label><span className="dot finish" /> Destination</label>
-            <input value={finish} onChange={(e) => setFinish(e.target.value)} placeholder="City, ST" />
-          </div>
-          <button className="go" type="submit" disabled={loading}>
-            {loading ? 'PLOTTING ROUTE…' : 'PLAN CHEAPEST FUEL'}
+        {/* Tab bar */}
+        <div className="tab-bar">
+          <button
+            className={`tab-btn ${tab === 'planner' ? 'active' : ''}`}
+            onClick={() => setTab('planner')}
+          >
+            Route Planner
           </button>
-        </form>
+          <button
+            className={`tab-btn ${tab === 'verify' ? 'active' : ''}`}
+            onClick={() => setTab('verify')}
+          >
+            Verify API
+          </button>
+        </div>
 
-        {error && <div className="error">⚠ {error}</div>}
-
-        {data && (
+        {/* Planner tab */}
+        {tab === 'planner' && (
           <>
-            <div className="kpis">
-              <div className="kpi">
-                <div className="k">Distance</div>
-                <div className="v">{fmt(data.total_distance_miles)}<small>mi</small></div>
+            <form onSubmit={plan}>
+              <div className="field">
+                <label><span className="dot start" /> Origin</label>
+                <input value={start} onChange={(e) => setStart(e.target.value)} placeholder="City, ST" />
               </div>
-              <div className="kpi">
-                <div className="k">Drive time</div>
-                <div className="v">{fmt(data.estimated_duration_hours, 1)}<small>hr</small></div>
+              <div className="field">
+                <label><span className="dot finish" /> Destination</label>
+                <input value={finish} onChange={(e) => setFinish(e.target.value)} placeholder="City, ST" />
               </div>
-              <div className="kpi">
-                <div className="k">Fuel</div>
-                <div className="v">{fmt(data.total_gallons, 1)}<small>gal</small></div>
-              </div>
-              <div className="kpi cost">
-                <div className="k">Total cost</div>
-                <div className="v">${fmt(data.total_fuel_cost, 2)}</div>
-              </div>
-            </div>
+              <button className="go" type="submit" disabled={loading}>
+                {loading ? 'PLOTTING ROUTE…' : 'PLAN CHEAPEST FUEL'}
+              </button>
+            </form>
 
-            <div className="stops">
-              <h2>{data.fuel_stops.length} fuel stop{data.fuel_stops.length === 1 ? '' : 's'}</h2>
-              {data.fuel_stops.map((s) => (
-                <div className="stop" key={s.stop_number}>
-                  <div className="badge">{s.stop_number}</div>
-                  <div>
-                    <div className="name">
-                      {s.station ? s.station.name : `${s.state} · national avg`}
-                    </div>
-                    <div className="meta">
-                      {s.station ? `${s.station.city}, ${s.state}` : s.state} ·
-                      {' '}{fmt(s.distance_from_start_miles)}mi in · {fmt(s.gallons_purchased, 1)} gal
-                    </div>
+            {error && <div className="error">⚠ {error}</div>}
+
+            {data && (
+              <>
+                <div className="kpis">
+                  <div className="kpi">
+                    <div className="k">Distance</div>
+                    <div className="v">{fmt(data.total_distance_miles)}<small>mi</small></div>
                   </div>
-                  <div className="price">
-                    <div className="pg">${fmt(s.price_per_gallon, 2)}</div>
-                    <div className="seg">${fmt(s.segment_cost, 2)}</div>
+                  <div className="kpi">
+                    <div className="k">Drive time</div>
+                    <div className="v">{fmt(data.estimated_duration_hours, 1)}<small>hr</small></div>
+                  </div>
+                  <div className="kpi">
+                    <div className="k">Fuel</div>
+                    <div className="v">{fmt(data.total_gallons, 1)}<small>gal</small></div>
+                  </div>
+                  <div className="kpi cost">
+                    <div className="k">Total cost</div>
+                    <div className="v">${fmt(data.total_fuel_cost, 2)}</div>
                   </div>
                 </div>
-              ))}
-            </div>
+
+                <div className="stops">
+                  <h2>{data.fuel_stops.length} fuel stop{data.fuel_stops.length === 1 ? '' : 's'}</h2>
+                  {data.fuel_stops.map((s) => (
+                    <div className="stop" key={s.stop_number}>
+                      <div className="badge">{s.stop_number}</div>
+                      <div>
+                        <div className="name">
+                          {s.station ? s.station.name : `${s.state} · national avg`}
+                        </div>
+                        <div className="meta">
+                          {s.station ? `${s.station.city}, ${s.state}` : s.state} ·
+                          {' '}{fmt(s.distance_from_start_miles)}mi in · {fmt(s.gallons_purchased, 1)} gal
+                        </div>
+                      </div>
+                      <div className="price">
+                        <div className="pg">${fmt(s.price_per_gallon, 2)}</div>
+                        <div className="seg">${fmt(s.segment_cost, 2)}</div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </>
+            )}
+
+            {!data && !error && (
+              <div className="empty">
+                Enter two US locations and hit <b>plan</b>. The planner makes a single
+                routing call, then greedily refuels at the <b>cheapest station reachable
+                within range</b> — so price, not a fixed mileage, decides every stop.
+              </div>
+            )}
           </>
         )}
 
-        {!data && !error && (
-          <div className="empty">
-            Enter two US locations and hit <b>plan</b>. The planner makes a single
-            routing call, then greedily refuels at the <b>cheapest station reachable
-            within range</b> — so price, not a fixed mileage, decides every stop.
-          </div>
-        )}
+        {/* Verify tab */}
+        {tab === 'verify' && <VerifyPanel />}
       </aside>
 
       <div className="map-wrap">
