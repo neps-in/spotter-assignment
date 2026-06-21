@@ -33,11 +33,21 @@ curl -X POST http://127.0.0.1:8000/api/route/ \
   "total_gallons": 43.9,
   "total_fuel_cost": 126.3,
   "fuel_stops": [
-    {"stop_number": 1, "distance_from_start_miles": 0.0, "state": "KS",
-     "price_per_gallon": 2.84, "gallons_purchased": 24.5, "miles_covered": 245.0,
-     "segment_cost": 69.65, "station": {"name": "...", "city": "...", "state": "KS"}}
+    {
+      "stop_number": 1,
+      "distance_from_start_miles": 0.0,
+      "state": "KS",
+      "price_per_gallon": 2.84,
+      "gallons_purchased": 24.5,
+      "miles_covered": 245.0,
+      "segment_cost": 69.65,
+      "station": { "name": "...", "city": "...", "state": "KS" }
+    }
   ],
-  "route_geojson": {"type": "LineString", "coordinates": [[-97.33, 37.69], "..."]}
+  "route_geojson": {
+    "type": "LineString",
+    "coordinates": [[-97.33, 37.69], "..."]
+  }
 }
 ```
 
@@ -46,8 +56,8 @@ curl -X POST http://127.0.0.1:8000/api/route/ \
 ## Design in one page
 
 **The brief is an optimization problem on a performance budget.** Three
-constraints drove every decision: *optimal = cheapest*, *respond fast*, and *make
-as few routing calls as possible*.
+constraints drove every decision: _optimal = cheapest_, _respond fast_, and _make
+as few routing calls as possible_.
 
 **Front-load the network, then stay in pure Python.** Free, keyless services —
 **Nominatim** (geocoding) and **OSRM** (routing) — keep setup to zero. Per
@@ -66,10 +76,10 @@ choices keep the rest cheap: fuel prices load **once from the CSV into memory**
 per-point reverse-geocoding.
 
 **The core function — greedy cheapest-in-window.** A fixed "stop every 450 miles"
-trigger has a flaw: price never influences *where* you stop. So `plan_fuel_stops`
+trigger has a flaw: price never influences _where_ you stop. So `plan_fuel_stops`
 inverts it — at each stop it scans every station reachable within the safe range
 (`500 − 50mi reserve`) and jumps to the **cheapest**, breaking ties toward
-*farther* to minimize stops. Fuel for each leg is charged at its departure price.
+_farther_ to minimize stops. Fuel for each leg is charged at its departure price.
 
 A real Kansas → Missouri run shows why it matters:
 
@@ -81,7 +91,7 @@ Stop #2 lands at **245mi, not 450** — it refuels at the last cheap-Kansas poin
 before prices climb, which a rigid trigger would sail past. A regression test
 encodes exactly this and asserts the greedy beats the all-expensive baseline.
 
-**Known trade-off:** the greedy doesn't weigh the *cost of reaching* a far cheap
+**Known trade-off:** the greedy doesn't weigh the _cost of reaching_ a far cheap
 station (the look-ahead variable-fill rule would, with more complexity and tank
 state). Chosen deliberately — it captures most of the savings in one clean pass
 with zero extra calls.
@@ -115,12 +125,12 @@ greedy-beats-fixed-trigger scenario, and API response shape.
 
 ## Configuration (`config/settings.py`)
 
-| Setting | Default | Meaning |
-|---|---|---|
-| `VEHICLE_MAX_RANGE_MILES` | 500 | Tank range |
-| `FUEL_SAFETY_BUFFER_MILES` | 50 | Reserve; planning window = range − buffer |
-| `VEHICLE_MPG` | 10 | Fuel economy |
-| `OSRM_BASE_URL` / `NOMINATIM_BASE_URL` | public demos | Swap for self-hosted in prod |
+| Setting                                | Default      | Meaning                                   |
+| -------------------------------------- | ------------ | ----------------------------------------- |
+| `VEHICLE_MAX_RANGE_MILES`              | 500          | Tank range                                |
+| `FUEL_SAFETY_BUFFER_MILES`             | 50           | Reserve; planning window = range − buffer |
+| `VEHICLE_MPG`                          | 10           | Fuel economy                              |
+| `OSRM_BASE_URL` / `NOMINATIM_BASE_URL` | public demos | Swap for self-hosted in prod              |
 
 **Production notes:** swap LocMemCache → Redis (shared across workers); a thin
 Leaflet frontend can render the returned GeoJSON + stop markers.

@@ -5,27 +5,6 @@ problem statement and plan, and the decision around improving fuel-stop optimiza
 
 ---
 
-## 1. Greeting & setup note
-
-**User:** hi
-
-**Assistant:** Introduced itself as Claude Code working in `/home/ubuntu/spotter-assi`.
-
-Raised an honest caveat about the global `CLAUDE.md` "Model Switcher Agent" spec: it asks
-for model-load banners, live token/cost meters, and per-step savings reports. Those can't be
-done reliably — within a session it runs as a single model and doesn't switch models mid-task,
-and it has no access to real-time token counts or billing, so any cost/savings numbers printed
-would be fabricated. Declined to show made-up dashboards.
-
-Noted the directory was not yet a git repo and that a Django toolchain was available.
-
----
-
-## 2. Request: review codebase vs problem statement and plan
-
-**User:** read `@problem-statement.md` and review the codebase if it matches or solves the
-problem; also read `@plan.md` — is that the right plan?
-
 ### Problem statement (summary)
 
 - Build an API taking start and finish locations, both within the USA.
@@ -77,42 +56,10 @@ fuel-prices-for-be-assessment.csv   # 8151 station rows
 CSV header: `OPIS Truckstop ID, Truckstop Name, Address, City, State, Rack ID, Retail Price`
 — matches the field names used in `fuel_prices.py` and `load_fuel_prices.py`.
 
-### Assessment — does it solve the problem?
-
-**Yes, substantially.** Requirement mapping:
-
-| Requirement | Status | Where |
-|---|---|---|
-| API: start + finish in USA | Done | `RoutePlannerView` + serializer, USA bbox check in `geocoder.py` |
-| Route + map | Done | OSRM call → `route_geojson` LineString (client renders) |
-| Optimal cost-effective fuel stops | Partial | `cheapest_station_by_state()` picks cheapest per state, not route-optimal |
-| Max range 500mi, multiple fuel-ups | Done | `FUEL_STOP_TRIGGER_MILES=450` loop in `fuel_planner.py` |
-| Total fuel cost @ 10 MPG | Done | `plan_fuel_stops`, Decimal math |
-| Uses provided CSV | Done | `fuel_prices.py` reads it directly; columns match |
-| Latest stable Django | Done | settings reference Django 6.0.6 |
-| Fast / minimal external calls | Done | 2 Nominatim (parallel) + 1 OSRM = 3 calls, all cached |
-
 **Insights raised:**
 
-- **Two CSV-loading paths coexist.** `fuel_prices.py` reads the CSV directly via `lru_cache`
-  (used at request time), while `models.FuelStation` + the `load_fuel_prices` command load it
-  into SQLite. The runtime path never queries the DB — so the model/migration/command are
-  effectively dead code for the request flow. Fine for speed, but redundant.
 - The geocode `ThreadPoolExecutor` runs before the OSRM call, so the two Nominatim lookups are
   genuinely parallel — a real latency win matching the plan's Phase 5.3.
-
-### Real correctness concerns
-
-1. **"Optimal" is weaker than the problem asks.** The code refuels at a fixed 450-mile cadence
-   and, at each forced stop, takes the cheapest station in whatever state the interpolated point
-   lands in. It does not look ahead to choose where fuel is cheapest within range, and never
-   anchors stops to actual station coordinates near the route — it uses a state-level price.
-2. **`miles_from_last_stop` is mislabeled.** It's the distance of the upcoming segment being
-   fueled for, not miles since the previous stop.
-3. **State bboxes overlap and are coarse.** `point_to_state` breaks ties by nearest centroid;
-   near borders this can pick the wrong state and thus the wrong price.
-4. **`frontend/` is empty.** The API returns GeoJSON (a valid "client renders" interpretation),
-   but there is no actual map UI. If a visual map was expected, it's missing.
 
 ### Is plan.md the right plan?
 
@@ -146,7 +93,7 @@ state there, and pays that state's cheapest price. **Price never influences wher
 placed.** The location is decided purely by geometry (distance + where a state border falls),
 and price is read off afterward.
 
-But the problem statement asks for the *"optimal location to fuel up ... cost effective."* So the
+But the problem statement asks for the _"optimal location to fuel up ... cost effective."_ So the
 assignment is asking you to **choose the location to minimize cost** — and the fixed trigger does
 the opposite: it fixes the location first and lets cost fall out as an accident.
 
@@ -155,8 +102,8 @@ the opposite: it fixes the location first and lets cost fall out as an accident.
 - This is the known **"gas station problem"**: given a max tank range and prices along a route,
   minimize fuel spend. The fixed-trigger heuristic is the one approach that provably ignores the
   price signal in its decision variable (where to stop), so it can't be optimal except by luck.
-- The 450 number is a 50-mile safety buffer under the 500 range. That buffer is a *constraint*
-  (don't run dry), but the current code mistakes it for the *decision* (stop exactly here).
+- The 450 number is a 50-mile safety buffer under the 500 range. That buffer is a _constraint_
+  (don't run dry), but the current code mistakes it for the _decision_ (stop exactly here).
 
 ### Why the window approach is better
 
@@ -193,8 +140,8 @@ the opposite: it fixes the location first and lets cost fall out as an accident.
 ### Honest caveat
 
 "Cheapest reachable station in the window" is itself still a **greedy heuristic**, not provably
-optimal. The fully optimal gas-station rule adds look-ahead: *if a cheaper station is reachable,
-buy only enough to reach it; if not, fill the tank and drive to the cheapest station within range.*
+optimal. The fully optimal gas-station rule adds look-ahead: _if a cheaper station is reachable,
+buy only enough to reach it; if not, fill the tank and drive to the cheapest station within range._
 That variable-fill rule beats both. So there's an implementation choice:
 
 - **Greedy "cheapest-in-window"** — simple, big improvement over fixed-trigger, ~optimal in practice.
@@ -208,9 +155,3 @@ filter over the ~8k-row CSV), not just a per-state minimum.
 savings while keeping the one-pass, no-extra-API-call design intact.
 
 ---
-
-## Open next steps
-
-- Implement the chosen optimization variant (greedy cheapest-in-window recommended).
-- Optionally: run the test suite, reconcile the dead DB code path, fix the
-  `miles_from_last_stop` label, and build the map frontend.

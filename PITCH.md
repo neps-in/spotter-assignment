@@ -1,8 +1,5 @@
 # Fuel-Stop Route Planner — Pitch
 
-Two framings of the same submission: a 30-second elevator pitch and a full
-walkthrough of the strategy, the plan, and the core function.
-
 ---
 
 ## Short version (elevator pitch — ~30 seconds)
@@ -11,13 +8,13 @@ walkthrough of the strategy, the plan, and the core function.
 > truck across the US. You give it a start and finish; it returns the route, the
 > fuel stops, and the total cost at 10 MPG.
 >
-> The whole design is built around one constraint from the brief: *don't hammer
-> the routing API*. So I make exactly **three external calls** — two geocodes
+> The whole design is built around one constraint from the problem statement: _don't hammer
+> the routing API_. So I make exactly **three external calls** — two geocodes
 > (run in parallel) and a **single OSRM routing call** — and everything else is
 > pure Python on data I already have. Fuel prices load once from the CSV into
 > memory; no database, no per-request lookups.
 >
-> The interesting part is *how* it chooses stops. Instead of refuelling on a
+> The interesting part is _how_ it chooses stops. Instead of refuelling on a
 > rigid timer — "stop every 450 miles" — the planner asks the real question a
 > driver asks: **"of every station I can still reach on this tank, which is
 > cheapest?"** It refuels there. On real data that means it tops up at the last
@@ -25,9 +22,7 @@ walkthrough of the strategy, the plan, and the core function.
 > mark blindly lands. Same route, lower bill, and it's all one fast pass with
 > caching so a repeat request makes zero API calls.
 
----
-
-## Detailed version (the full walkthrough)
+Now lets look at the code in detail.
 
 ### The problem, restated as constraints
 
@@ -35,8 +30,8 @@ The brief looks like "draw a route and add gas stops," but it's really an
 optimization problem wrapped in a performance budget. Three things drove every
 decision:
 
-1. **"Optimal means cost-effective."** The deliverable isn't *a* set of stops —
-   it's the *cheapest* set.
+1. **"Optimal means cost-effective."** The deliverable isn't _a_ set of stops —
+   it's the _cheapest_ set.
 2. **"Return results quickly."** Latency is a feature, not a nice-to-have.
 3. **"One routing call is ideal, two or three acceptable."** External calls are
    the expensive, slow, rate-limited part — so I treat them as a scarce resource
@@ -66,7 +61,7 @@ routes 1h). Two design choices keep the non-network work cheap too:
 
 - **Fuel prices load once from the CSV into an in-memory structure**
   (`lru_cache`). 8,151 stations collapse to a cheapest-price-per-state map. No
-  database, no migrations, no query at request time. I deliberately *dropped* a
+  database, no migrations, no query at request time. I deliberately _dropped_ a
   DB model I'd sketched earlier — it was dead weight the request path never
   touched.
 - **States are resolved by bounding box, not reverse-geocoding.** Calling an API
@@ -77,8 +72,8 @@ routes 1h). Two design choices keep the non-network work cheap too:
 ### The function: greedy cheapest-in-window
 
 This is the heart of it, and it's where I made a real engineering choice. The
-naive approach — **refuel every 450 miles** — has a subtle flaw: *price never
-influences where you stop.* The location is decided by geometry, and you just
+naive approach — **refuel every 450 miles** — has a subtle flaw: _price never
+influences where you stop._ The location is decided by geometry, and you just
 pay whatever price happens to be there. That's the opposite of "optimal location
 to fuel up."
 
@@ -95,7 +90,7 @@ Concretely:
    distance, so the costs sum to the true trip length.
 3. **Greedy loop:** from the current stop, look at every node reachable within
    the safe range (`500 − 50mi reserve = 450`), and jump to the **cheapest** one.
-   Ties break toward *farther*, so we ride equally-cheap fuel as long as possible
+   Ties break toward _farther_, so we ride equally-cheap fuel as long as possible
    and minimize stop count.
 4. Charge each leg's fuel at the price of the stop it departs from; sum gallons
    and dollars.
@@ -108,7 +103,7 @@ total: $229.01
 ```
 
 Stop #2 lands at **245 miles, not 450** — because just past there the route
-leaves cheap Kansas for pricier states. The planner refuels at the *last*
+leaves cheap Kansas for pricier states. The planner refuels at the _last_
 cheap-KS point before the climb. A fixed-450 trigger would have sailed past that
 window and paid more. I wrote a regression test that encodes exactly this
 scenario (a cheap pocket a rigid trigger skips) and asserts the greedy beats the
@@ -116,7 +111,7 @@ all-expensive baseline.
 
 ### Honesty about the trade-off
 
-The greedy doesn't weigh the *cost of reaching* a far-but-cheap station — the
+The greedy doesn't weigh the _cost of reaching_ a far-but-cheap station — the
 fully optimal "look-ahead variable-fill" rule does, at the price of more
 complexity and carrying tank state. I chose the greedy deliberately: it captures
 the large majority of the savings, stays a single clean pass, and adds zero API

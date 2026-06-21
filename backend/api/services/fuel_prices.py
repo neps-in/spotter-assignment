@@ -1,4 +1,4 @@
-"""In-memory fuel price data loaded once from the assessment CSV.
+"""In-memory fuel price data loaded once from the assignment CSV.
 
 Loading the CSV into module-level caches means zero database queries and zero
 external calls when planning fuel stops at request time.
