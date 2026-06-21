@@ -2,10 +2,13 @@ from rest_framework import serializers
 
 
 class RouteRequestSerializer(serializers.Serializer):
+    """Validates the JSON body for POST /api/route/."""
+
     start = serializers.CharField(max_length=200, trim_whitespace=True)
     finish = serializers.CharField(max_length=200, trim_whitespace=True)
 
     def validate(self, attrs):
+        """Reject identical start/finish early to avoid a pointless geocode round-trip."""
         if attrs['start'].casefold() == attrs['finish'].casefold():
             raise serializers.ValidationError('Start and finish must be different locations.')
         return attrs

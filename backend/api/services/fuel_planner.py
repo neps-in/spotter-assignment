@@ -13,10 +13,12 @@ SAMPLE_INTERVAL_MILES = 5.0
 
 
 def money(value):
+    """Round to the nearest cent (2 decimal places) for display as a dollar amount."""
     return float(Decimal(value).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP))
 
 
 def quantity(value):
+    """Round to 3 decimal places for gallon quantities (e.g. 12.345 gal)."""
     return float(Decimal(value).quantize(Decimal('0.001'), rounding=ROUND_HALF_UP))
 
 

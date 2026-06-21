@@ -15,6 +15,7 @@ def get_route(origin, destination):
     Returns distance, duration, and the decoded geometry. Cached for 1h keyed
     on rounded coordinates so identical routes never re-hit OSRM.
     """
+    # Round to 4 decimal places (~11 m precision) so nearby jittered coords share a cache key.
     cache_key = (
         f"route:{origin['lat']:.4f},{origin['lon']:.4f}:"
         f"{destination['lat']:.4f},{destination['lon']:.4f}"
@@ -23,6 +24,7 @@ def get_route(origin, destination):
     if cached:
         return cached
 
+    # OSRM expects lon,lat order (GeoJSON convention), not the lat,lon we store internally.
     coords = f"{origin['lon']},{origin['lat']};{destination['lon']},{destination['lat']}"
     response = requests.get(
         f'{settings.OSRM_BASE_URL}/route/v1/driving/{coords}',
@@ -39,6 +41,7 @@ def get_route(origin, destination):
         'distance_miles': route['distance'] / METERS_PER_MILE,
         'duration_seconds': route['duration'],
         'encoded_polyline': route['geometry'],
+        # polyline.decode returns (lat, lon) tuples — the convention used throughout the pipeline.
         'decoded_points': polyline.decode(route['geometry']),
     }
     cache.set(cache_key, value, ROUTE_CACHE_TTL)

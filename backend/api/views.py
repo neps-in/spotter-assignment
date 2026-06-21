@@ -28,6 +28,7 @@ class RoutePlannerView(APIView):
         finish = serializer.validated_data['finish']
 
         try:
+            # Geocode start and finish in parallel to halve the Nominatim wait time.
             with ThreadPoolExecutor(max_workers=2) as executor:
                 origin_future = executor.submit(geocode, start)
                 destination_future = executor.submit(geocode, finish)
@@ -38,6 +39,7 @@ class RoutePlannerView(APIView):
             raise RoutingServiceError(f'External routing/geocoding service failed: {exc}') from exc
 
         fuel_plan = plan_fuel_stops(route['decoded_points'], route['distance_miles'])
+        # Thin the polyline before sending — the frontend only needs ~700 points for rendering.
         geojson_points = downsample_points(route['decoded_points'])
 
         return Response({
@@ -52,6 +54,7 @@ class RoutePlannerView(APIView):
             'total_fuel_cost': fuel_plan['total_fuel_cost'],
             'route_geojson': {
                 'type': 'LineString',
+                # GeoJSON spec requires [lon, lat] order — the opposite of OSRM's (lat, lon) tuples.
                 'coordinates': [[round(lon, 6), round(lat, 6)] for lat, lon in geojson_points],
             },
         }, status=status.HTTP_200_OK)

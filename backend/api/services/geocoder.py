@@ -14,6 +14,7 @@ def geocode(location):
     Cached for 24h per normalized query, so repeat lookups make no call.
     Raises if the location is unknown or outside the contiguous USA.
     """
+    # Collapse runs of whitespace so "New  York" and "New York" share a cache key.
     normalized = ' '.join(location.strip().split())
     cache_key = f'geocode:{normalized.casefold()}'
     cached = cache.get(cache_key)
@@ -33,6 +34,7 @@ def geocode(location):
 
     lat = float(results[0]['lat'])
     lon = float(results[0]['lon'])
+    # Bounding-box check keeps Alaska/Hawaii out even though countrycodes=us would include them.
     if not is_contiguous_usa(lat, lon):
         raise LocationOutsideUSAError(f'Location must be in the contiguous USA: {location}')
 

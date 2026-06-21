@@ -13,6 +13,11 @@ from django.conf import settings
 
 @lru_cache(maxsize=1)
 def load_stations():
+    """Parse the assessment CSV once and cache every valid station row in memory.
+
+    Rows with a missing or malformed Retail Price are silently skipped so a
+    single bad entry doesn't abort the entire load.
+    """
     stations = []
     with open(settings.FUEL_PRICE_CSV, newline='', encoding='utf-8-sig') as handle:
         reader = csv.DictReader(handle)
@@ -35,6 +40,7 @@ def load_stations():
 
 @lru_cache(maxsize=1)
 def cheapest_station_by_state():
+    """Return a mapping of state code -> cheapest station dict from the CSV data."""
     cheapest = {}
     for station in load_stations():
         state = station['state']
@@ -45,6 +51,10 @@ def cheapest_station_by_state():
 
 @lru_cache(maxsize=1)
 def national_average_price():
+    """Mean retail price across all CSV stations; used when a state has no entry.
+
+    Falls back to $3.50 when the CSV is empty to keep the planner runnable.
+    """
     stations = load_stations()
     if not stations:
         return Decimal('3.50')
@@ -52,4 +62,5 @@ def national_average_price():
 
 
 def station_for_state(state):
+    """Return the cheapest station dict for a 2-letter state code, or None if absent."""
     return cheapest_station_by_state().get(state)

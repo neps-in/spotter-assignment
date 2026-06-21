@@ -9,11 +9,13 @@ def haversine_miles(point_a, point_b):
     """Great-circle distance in miles between two (lat, lon) points."""
     lat1, lon1 = point_a
     lat2, lon2 = point_b
-    phi1 = math.radians(lat1)
-    phi2 = math.radians(lat2)
-    d_phi = math.radians(lat2 - lat1)
-    d_lambda = math.radians(lon2 - lon1)
+    phi1 = math.radians(lat1)        # latitude of A in radians
+    phi2 = math.radians(lat2)        # latitude of B in radians
+    d_phi = math.radians(lat2 - lat1)      # Δ latitude
+    d_lambda = math.radians(lon2 - lon1)   # Δ longitude
+    # a = sin²(Δφ/2) + cos φ₁ · cos φ₂ · sin²(Δλ/2)  — square of half-chord length
     a = math.sin(d_phi / 2) ** 2 + math.cos(phi1) * math.cos(phi2) * math.sin(d_lambda / 2) ** 2
+    # 2·atan2(√a, √(1−a)) gives the central angle; multiply by Earth's radius for arc length.
     return 2 * EARTH_RADIUS_MILES * math.atan2(math.sqrt(a), math.sqrt(1 - a))
 
 
@@ -42,8 +44,10 @@ def downsample_points(points, max_points=700):
     """Thin a dense polyline for the map response while keeping the endpoints."""
     if len(points) <= max_points:
         return points
+    # Ceiling division ensures stride * max_points >= len(points), so we never exceed max_points.
     stride = math.ceil(len(points) / max_points)
     sampled = points[::stride]
+    # The strided slice may skip the last point; always append it to close the route.
     if sampled[-1] != points[-1]:
         sampled.append(points[-1])
     return sampled
